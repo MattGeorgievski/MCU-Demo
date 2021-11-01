@@ -31,23 +31,34 @@ void lcd_light(int on);
 void putchar_lcd(uint8_t ch, int rs);
 void puts_lcd(char *s);
 
+void updateADC();
+void stateMachine(int stateInput);
+void clearLCD();
+void setPosStart();
+
+
 // Delay functions used to interface LCD
 void delay1ms();
 void delay15ms();
 
 volatile unsigned long msElapsed = 0;
 static bool prev = false;
-volatile int state = 0;
+volatile int stateCount = 0;
 volatile bool btn_pressed;
 volatile bool reliable;
-bool isWritten = false;
+bool isClear = true;
 volatile int timerFlag;
+int state = 0;
+
+char ADCstring[50] = ("ADC:val  State BMechatronics 1");
+char string[50] = ("SID:13894023    Mechatronics 1");
+char ADCupdate[10] = ("ADC:");
 
 ISR(TIMER0_COMPA_vect)
 {
 
-    msElapsed++;
-    if(msElapsed > 50)                        // when 50 ms has elapsed
+    msElapsed++;                        // Increases count every ms
+    if(msElapsed > 200)                        // when 200 ms has elapsed
     {
         btn_pressed = (PIND & 0b00001000);
         reliable = btn_pressed==prev;
@@ -58,7 +69,28 @@ ISR(TIMER0_COMPA_vect)
     if(!reliable)
     {
         btn_pressed = false;
-    }                          // Increases count every ms
+    }                          
+
+    if(!btn_pressed)
+    {
+        stateCount++;
+    }
+
+    if(!(stateCount % 2 == 0))
+    {
+        PORTD |= (1<<6);
+        state = 0;
+
+
+    }
+    else if(stateCount % 2 == 0)
+    {
+
+        PORTD &= ~(1<<6);
+        state = 1;
+
+
+    }
 
 }
 
@@ -88,58 +120,33 @@ int main(void)
     TCCR0B |= (1 << CS00) | (1 << CS01);         // Prescaler = 64 and starts counting
 
     
-    char string[50] = ("SID:13894023Mechatronics 1");
+
+
 
     init_twi();
     init_lcd();
 
     // ADC start
     ADMUX |= (1 << REFS0) | (1 << MUX0);
-    ADCSRA |= (1 << ADEN) | (1 << ADPS2) | (1 << ADIE);
+    ADCSRA |= (1 << ADPS2) | (1 << ADIE);
+    
     
     //ADCSRB = 0x00; // free running mode init
-    ADCSRA |= (1<<ADSC); // start conversion
+    
 	
     UBRR0H = (brc >> 8);
     UBRR0L = brc;   // sets baud rate
 
-    char ADCstring[50] = ("ADC:%d State B Mechatronics 1");
+
 
 
     while(1)
     { 
-        ADCprint = ADCvalue;
-
-        
-
-
-        if(!btn_pressed)
-        {
-            state++;
-        }
-
-        if(state % 2 == 0)
-        {
-            PORTD |= (1<<6);
-            if(!isWritten)
-            {
-                puts_lcd(string);
-                isWritten = true;
-            }
-        }
-        else if(!(state % 2 == 0))
-        {
-            sprintf(ADCstring, "ADC:%d State B Mechatronics 1", ADCprint);
-            PORTD &= ~(1<<6);
-            init_lcd();
-            isWritten = false;
-            ADCSRA |= (1<<ADSC);
-            puts_lcd(ADCstring);
-
-        }
+        updateADC();
+        stateMachine(state);
 
     }
-    return 0;
+
 }
 
 void init_twi()
@@ -284,7 +291,7 @@ void init_lcd()
 	putchar_twi(ch);
 	delay1ms();
 
-    ch = 0x60|(1<<LCD_BL); //step 9
+    ch = 0xB0|(1<<LCD_BL); //step 9
  	ch |= (1<<LCD_EN);
 	putchar_twi(ch);
 	delay1ms();
@@ -307,6 +314,29 @@ void init_lcd()
 	ch &= ~(1<<LCD_EN);
 	putchar_twi(ch);
 	delay1ms();
+
+
+}
+
+void clearLCD()
+{
+    uint8_t ch;
+
+    ch = 0x00|(1<<LCD_BL); //step 8
+ 	ch |= (1<<LCD_EN);
+	putchar_twi(ch);
+	delay1ms();
+	ch &= ~(1<<LCD_EN);
+	putchar_twi(ch);
+	delay1ms();
+
+    ch = 0x10|(1<<LCD_BL); //step 8
+ 	ch |= (1<<LCD_EN);
+	putchar_twi(ch);
+	delay15ms();
+	ch &= ~(1<<LCD_EN);
+	putchar_twi(ch);
+	delay15ms();
 
 
 }
@@ -421,3 +451,73 @@ void delay15ms()
   TIFR2 |= 0x01;
 }
 
+void updateADC()
+{
+    ADCSRA |= (1<<ADEN);
+    ADCSRA |= (1<<ADSC); // start conversion
+    ADCprint = ADCvalue;
+    sprintf(ADCupdate, "ADC:%d ", ADCprint);
+    ADCSRA &= ~(1<<ADEN);
+
+}
+
+void stateMachine(int stateInput)
+{
+    switch(stateInput)
+    {
+        case 0:
+            
+            if(isClear)
+            {
+                setPosStart();
+                puts_lcd(string);
+                isClear = false;
+
+                
+            }
+            break;
+
+        case 1:
+            if(!isClear)
+            {
+                clearLCD();
+                isClear = true;
+                puts_lcd(ADCstring);
+            }
+
+            if(state)
+            {
+                setPosStart();
+                puts_lcd(ADCupdate);
+                isClear = true;
+
+            }
+            
+            
+            break;
+
+    }
+}
+
+void setPosStart()
+{
+
+    uint8_t ch; 
+
+    ch = 0x00|(1<<LCD_BL);
+ 	ch |= (1<<LCD_EN);
+	putchar_twi(ch);
+	delay1ms();
+	ch &= ~(1<<LCD_EN);
+	putchar_twi(ch);
+	delay1ms();
+
+    ch = 0x20|(1<<LCD_BL);
+ 	ch |= (1<<LCD_EN);
+	putchar_twi(ch);
+	delay1ms();
+	ch &= ~(1<<LCD_EN);
+	putchar_twi(ch);
+	delay1ms();
+
+}
