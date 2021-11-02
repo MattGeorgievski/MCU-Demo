@@ -59,11 +59,13 @@ volatile unsigned long msElapsedUART = 0;
 volatile bool uartFlag = true;
 volatile bool secondFlag = false;
 volatile unsigned long thousandms = 0;
+bool pushButton2;
 
 char ADCstring[50] = ("ADC:val  STATE BMECHATRONICS 1");
 char string[50] = ("SID:13894023    MECHATRONICS 1");
 char ADCupdate[10] = ("ADC:");
 char uartString[50] = ("S2021 EMS SID: 13894023, ADC Reading: %d");
+
 
 ISR(TIMER0_COMPA_vect)
 {
@@ -116,12 +118,7 @@ ISR(TIMER0_COMPA_vect)
         }
     }
 
-    if(thousandms > 1000)
-    {
-
-        secondFlag = true;
-
-    }
+    
 
 }
 
@@ -491,11 +488,16 @@ void updateADC()
 
 void stateMachine(int stateInput)
 {
+    
+    pushButton2 = (PIND & (1 << PD2));
+    
     switch(stateInput)
+    
     {
         case 0:
 
             PORTD &= ~(1 << PD4);
+            PORTD &= ~(1 << PD5);
             sprintf(uartString, "S2021 EMS SID: 13894023, ADC Reading: %d", ADCprint);
             
             if(isClear)
@@ -518,7 +520,7 @@ void stateMachine(int stateInput)
 
         case 1:
 
-            bool pushButton2 = (PIND & (1 << PD2));
+
 
             if(!isClear)
             {
@@ -535,23 +537,21 @@ void stateMachine(int stateInput)
 
             }
 
-            if(secondFlag & !pushButton2)
+            if((thousandms > 1000) & !pushButton2)
             {
-
-                PORTD ^= (1 << PORTD4);
-                secondFlag = false;
+                PORTD &= ~(1 << PD5);
+                PORTD ^= (1 << PD4);
+                thousandms = 0;
 
             }
 
-            if(secondFlag & pushButton2)
+            if((thousandms > 1000) & pushButton2)
             {
-
-                PORTD ^= (1 << PORTD5);
-                secondFlag = false;   
+                PORTD &= ~(1 << PD4);
+                PORTD ^= (1 << PD5);
+                thousandms = 0;
 
             }
-
-
             
             
             break;
