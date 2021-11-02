@@ -57,6 +57,8 @@ unsigned char tx_buf[100];
 unsigned int tx_index=0, tx_size=0;
 volatile unsigned long msElapsedUART = 0;
 volatile bool uartFlag = true;
+volatile bool secondFlag = false;
+volatile unsigned long thousandms = 0;
 
 char ADCstring[50] = ("ADC:val  STATE BMECHATRONICS 1");
 char string[50] = ("SID:13894023    MECHATRONICS 1");
@@ -68,6 +70,7 @@ ISR(TIMER0_COMPA_vect)
 
     msElapsed++;                                // Increases count every ms
     msElapsedUART++;
+    thousandms++;
     
     if(msElapsed > 200)                        // when 200 ms has elapsed
     {
@@ -89,7 +92,7 @@ ISR(TIMER0_COMPA_vect)
 
     if(!(stateCount % 2 == 0))
     {
-        PORTD |= (1<<6);
+        PORTD |= (1<<7);
         state = 0;
 
 
@@ -97,7 +100,7 @@ ISR(TIMER0_COMPA_vect)
     else if(stateCount % 2 == 0)
     {
 
-        PORTD &= ~(1<<6);
+        PORTD &= ~(1<<7);
         state = 1;
 
 
@@ -112,6 +115,14 @@ ISR(TIMER0_COMPA_vect)
             uartFlag = true;
         }
     }
+
+    if(thousandms > 1000)
+    {
+
+        secondFlag = true;
+
+    }
+
 }
 
 ISR(ADC_vect)
@@ -123,7 +134,7 @@ ISR(ADC_vect)
 int main(void)
 {
 
-    DDRD = (1 << PD7) | (1 << PD4); //PD6 is output for state LED, PD5, PD7, PD3
+    DDRD = (1 << PD7) | (1 << PD4) | (1 << PD5); //PD6 is output for state LED, PD5, PD7, PD3
 	PORTD = (1 << PORTD3) | (1 << PORTD2); // Enables internal Pull-Up Resistor on PB
 
 
@@ -484,6 +495,7 @@ void stateMachine(int stateInput)
     {
         case 0:
 
+            PORTD &= ~(1 << PD4);
             sprintf(uartString, "S2021 EMS SID: 13894023, ADC Reading: %d", ADCprint);
             
             if(isClear)
@@ -505,6 +517,9 @@ void stateMachine(int stateInput)
             break;
 
         case 1:
+
+            bool pushButton2 = (PIND & (1 << PD2));
+
             if(!isClear)
             {
                 clearLCD();
@@ -519,6 +534,23 @@ void stateMachine(int stateInput)
                 isClear = true;
 
             }
+
+            if(secondFlag & !pushButton2)
+            {
+
+                PORTD ^= (1 << PORTD4);
+                secondFlag = false;
+
+            }
+
+            if(secondFlag & pushButton2)
+            {
+
+                PORTD ^= (1 << PORTD5);
+                secondFlag = false;   
+
+            }
+
 
             
             
