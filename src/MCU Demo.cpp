@@ -31,6 +31,10 @@ void lcd_light(int on);
 void putchar_lcd(uint8_t ch, int rs);
 void puts_lcd(char *s);
 
+void putchar_uart(char ch);
+void puts_uart(char *s);
+void puts_uart_int(char *s);
+
 void updateADC();
 void stateMachine(int stateInput);
 void clearLCD();
@@ -49,15 +53,22 @@ volatile bool reliable;
 bool isClear = true;
 volatile int timerFlag;
 int state = 0;
+unsigned char tx_buf[100];
+unsigned int tx_index=0, tx_size=0;
+volatile unsigned long msElapsedUART = 0;
+volatile bool uartFlag = true;
 
-char ADCstring[50] = ("ADC:val  State BMechatronics 1");
-char string[50] = ("SID:13894023    Mechatronics 1");
+char ADCstring[50] = ("ADC:val  STATE BMECHATRONICS 1");
+char string[50] = ("SID:13894023    MECHATRONICS 1");
 char ADCupdate[10] = ("ADC:");
+char uartString[50] = ("S2021 EMS SID: 13894023, ADC Reading: %d");
 
 ISR(TIMER0_COMPA_vect)
 {
 
-    msElapsed++;                        // Increases count every ms
+    msElapsed++;                                // Increases count every ms
+    msElapsedUART++;
+    
     if(msElapsed > 200)                        // when 200 ms has elapsed
     {
         btn_pressed = (PIND & 0b00001000);
@@ -92,21 +103,28 @@ ISR(TIMER0_COMPA_vect)
 
     }
 
-}
+    if(msElapsedUART > 500)
+    {
+        msElapsedUART = 0;
 
+        if(!state)
+        {
+            uartFlag = true;
+        }
+    }
+}
 
 ISR(ADC_vect)
 {
     ADCvalue = ADCL | ADCH << 8;
 
-    //ADCSRA |= (1 << ADSC);  // read again
 }
 
 int main(void)
 {
 
-    DDRD = 0b00100000; //PD4 is output for LED
-	PORTD = 0b00001000; // Enables internal Pull-Up Resistor on PB
+    DDRD = (1 << PD7) | (1 << PD4); //PD6 is output for state LED, PD5, PD7, PD3
+	PORTD = (1 << PORTD3) | (1 << PORTD2); // Enables internal Pull-Up Resistor on PB
 
 
     // setting timer for button read
@@ -119,6 +137,9 @@ int main(void)
     
     TCCR0B |= (1 << CS00) | (1 << CS01);         // Prescaler = 64 and starts counting
 
+    UCSR0B = (1 << TXEN0) | (1 << RXEN0);  // Enables Tx and Rx
+    UCSR0C = (1 << UCSZ00) | (1 << UCSZ01); // Sets data size to 8 bits
+
     
 
 
@@ -129,9 +150,6 @@ int main(void)
     // ADC start
     ADMUX |= (1 << REFS0) | (1 << MUX0);
     ADCSRA |= (1 << ADPS2) | (1 << ADIE);
-    
-    
-    //ADCSRB = 0x00; // free running mode init
     
 	
     UBRR0H = (brc >> 8);
@@ -144,7 +162,6 @@ int main(void)
     { 
         updateADC();
         stateMachine(state);
-
     }
 
 }
@@ -466,6 +483,8 @@ void stateMachine(int stateInput)
     switch(stateInput)
     {
         case 0:
+
+            sprintf(uartString, "S2021 EMS SID: 13894023, ADC Reading: %d", ADCprint);
             
             if(isClear)
             {
@@ -473,6 +492,14 @@ void stateMachine(int stateInput)
                 puts_lcd(string);
                 isClear = false;
 
+                if(uartFlag)
+                {
+                    
+                    puts_uart(uartString);
+                    delay15ms();
+                    uartFlag = false;
+
+                }
                 
             }
             break;
@@ -492,6 +519,7 @@ void stateMachine(int stateInput)
                 isClear = true;
 
             }
+
             
             
             break;
@@ -519,5 +547,42 @@ void setPosStart()
 	ch &= ~(1<<LCD_EN);
 	putchar_twi(ch);
 	delay1ms();
+
+}
+
+void putchar_uart(char ch)
+{
+    // [TASK 1] complete this function to send a char
+    // using a polling method. You need to check the
+    // UCSR0A register to wait until UDRE0-bit sets -
+    // (UART (TX) Data Register Empty) 
+    // Then you can write a byte to UDR0 
+
+   while(1)
+   {
+       if(UCSR0A & (1 << UDRE0))
+        {
+            UDR0 = ch;
+            break;
+        }
+   }
+}
+
+void puts_uart(char *s)
+{
+    // [TASK 1] send a string data using while() or for-loop(). 
+    // note that the end of string is marked by '\0' (or 0x00)
+    // Loop until the content is 0x00 (NULL). You can call 
+    // putchar_uart() in the loop.
+    
+
+
+    unsigned long i;
+    for(i = 0; i < strlen(s); i++)
+    {
+        putchar_uart(s[i]);
+    }
+
+    putchar_uart('\n');
 
 }
