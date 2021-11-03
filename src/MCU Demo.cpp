@@ -124,7 +124,7 @@ ISR(TIMER0_COMPA_vect)
 
     ratio = (float) ((ADCvalue*800/1023) + 200);
 
-    if(ratioCount > ratio & state)
+    if((ratioCount > ratio) & state)
     {
 
                 PORTD ^= (1 << PD6);
