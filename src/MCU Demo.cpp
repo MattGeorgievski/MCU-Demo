@@ -62,6 +62,7 @@ volatile unsigned long thousandms = 0;
 bool pushButton2;
 volatile int ratioCount = 0;
 volatile bool ratioFlag = false;
+volatile float ratio;
 
 char ADCstring[50] = ("ADC:val  STATE BMECHATRONICS 1");
 char string[50] = ("SID:13894023    MECHATRONICS 1");
@@ -121,12 +122,13 @@ ISR(TIMER0_COMPA_vect)
         }
     }
 
-    int ratio = (float) ((ADCvalue*900/1023) + 100);
+    ratio = (float) ((ADCvalue*800/1023) + 200);
 
-    if(ratioCount > ratio)
+    if(ratioCount > ratio & state)
     {
 
-        ratioFlag = true;
+                PORTD ^= (1 << PD6);
+                ratioCount = 0;
 
     }
 
@@ -135,6 +137,7 @@ ISR(TIMER0_COMPA_vect)
 ISR(ADC_vect)
 {
     ADCvalue = ADCL | ADCH << 8;
+    
 
 }
 
@@ -180,6 +183,7 @@ int main(void)
     { 
         updateADC();
         stateMachine(state);
+        
     }
 
 }
@@ -500,6 +504,7 @@ void stateMachine(int stateInput)
 {
     
     pushButton2 = (PIND & (1 << PD2));
+    
     
     switch(stateInput)
     
