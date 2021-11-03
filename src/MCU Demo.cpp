@@ -60,6 +60,8 @@ volatile bool uartFlag = true;
 volatile bool secondFlag = false;
 volatile unsigned long thousandms = 0;
 bool pushButton2;
+volatile int ratioCount = 0;
+volatile bool ratioFlag = false;
 
 char ADCstring[50] = ("ADC:val  STATE BMECHATRONICS 1");
 char string[50] = ("SID:13894023    MECHATRONICS 1");
@@ -73,6 +75,7 @@ ISR(TIMER0_COMPA_vect)
     msElapsed++;                                // Increases count every ms
     msElapsedUART++;
     thousandms++;
+    ratioCount++;
     
     if(msElapsed > 200)                        // when 200 ms has elapsed
     {
@@ -118,7 +121,14 @@ ISR(TIMER0_COMPA_vect)
         }
     }
 
-    
+    int ratio = (float) ((ADCvalue*900/1023) + 100);
+
+    if(ratioCount > ratio)
+    {
+
+        ratioFlag = true;
+
+    }
 
 }
 
@@ -131,7 +141,7 @@ ISR(ADC_vect)
 int main(void)
 {
 
-    DDRD = (1 << PD7) | (1 << PD4) | (1 << PD5); //PD6 is output for state LED, PD5, PD7, PD3
+    DDRD = (1 << PD7) | (1 << PD4) | (1 << PD5) | (1 << PD6); //PD6 is output for state LED, PD5, PD7, PD3
 	PORTD = (1 << PORTD3) | (1 << PORTD2); // Enables internal Pull-Up Resistor on PB
 
 
@@ -498,6 +508,7 @@ void stateMachine(int stateInput)
 
             PORTD &= ~(1 << PD4);
             PORTD &= ~(1 << PD5);
+            PORTD &= ~(1 << PD6);
             sprintf(uartString, "S2021 EMS SID: 13894023, ADC Reading: %d", ADCprint);
             
             if(isClear)
@@ -550,6 +561,15 @@ void stateMachine(int stateInput)
                 PORTD &= ~(1 << PD4);
                 PORTD ^= (1 << PD5);
                 thousandms = 0;
+
+            }
+
+            if(ratioFlag)
+            {
+
+                PORTD ^= (1 << PD6);
+                ratioCount = 0;
+                ratioFlag = false;
 
             }
             
