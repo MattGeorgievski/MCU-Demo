@@ -63,6 +63,9 @@ bool pushButton2;
 volatile int ratioCount = 0;
 volatile bool ratioFlag = false;
 volatile float ratio;
+volatile float servoFlag = false;
+volatile int servoCount = 0;
+volatile float pwmval;
 
 char ADCstring[50] = ("ADC:val  STATE BMECHATRONICS 1");
 char string[50] = ("SID:13894023    MECHATRONICS 1");
@@ -77,6 +80,7 @@ ISR(TIMER0_COMPA_vect)
     msElapsedUART++;
     thousandms++;
     ratioCount++;
+    servoCount++;
     
     if(msElapsed > 200)                        // when 200 ms has elapsed
     {
@@ -108,9 +112,9 @@ ISR(TIMER0_COMPA_vect)
 
         PORTD &= ~(1<<7);
         state = 1;
-            if(state)
-
         OCR1A = (float) ((ADCvalue*4000/1023) + 1000); // duty cycle for servo motor
+
+        
 
     }
 
@@ -146,6 +150,7 @@ ISR(TIMER0_COMPA_vect)
                 ratioCount = 0;
 
     }
+
 
 }
 
@@ -217,6 +222,8 @@ int main(void)
                 UCSR0B ^= (1 << TXEN0);
             }
         }
+
+
 
     }
 
@@ -563,6 +570,8 @@ void stateMachine(int stateInput)
             break;
 
         case 1:
+
+            
 
             if(!isClear)
             {
