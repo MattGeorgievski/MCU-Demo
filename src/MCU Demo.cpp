@@ -197,6 +197,17 @@ int main(void)
         updateADC();
         stateMachine(state);
 
+        if(UCSR0A & (1 << RXC0))
+        {
+            char keyboardInput = UDR0;
+
+            if(keyboardInput == 'g')
+            {
+
+                UCSR0B ^= (1 << TXEN0);
+            }
+        }
+
         
     }
 
@@ -530,17 +541,6 @@ void stateMachine(int stateInput)
             PORTD &= ~(1 << PD6);
             sprintf(uartString, "S2021 EMS SID: 13894023, ADC Reading: %d", ADCprint);
 
-
-            /*if(UCSR0A & (1 << RXC0))
-            {
-            char keyboardInput = UDR0;
-
-                if(keyboardInput == 'g')
-                {
-
-                    UCSR0B ^= (1 << TXEN0);
-                }
-            }*/
 
             
             if(isClear)
