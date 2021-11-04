@@ -112,14 +112,27 @@ ISR(TIMER0_COMPA_vect)
 
     }
 
+    
     if(msElapsedUART > 500)
     {
-        msElapsedUART = 0;
 
-        if(!state)
+        uartFlag = true;
+
+        if(!state & uartFlag)
         {
-            uartFlag = true;
+            puts_uart(uartString);
+            delay15ms();
+            uartFlag = false;
         }
+
+        if(state)
+        {
+
+            uartFlag = false;
+
+        }
+
+        msElapsedUART = 0;
     }
 
     ratio = (float) ((ADCvalue*800/1023) + 200);
@@ -183,6 +196,7 @@ int main(void)
     { 
         updateADC();
         stateMachine(state);
+
         
     }
 
@@ -515,21 +529,25 @@ void stateMachine(int stateInput)
             PORTD &= ~(1 << PD5);
             PORTD &= ~(1 << PD6);
             sprintf(uartString, "S2021 EMS SID: 13894023, ADC Reading: %d", ADCprint);
+
+
+            /*if(UCSR0A & (1 << RXC0))
+            {
+            char keyboardInput = UDR0;
+
+                if(keyboardInput == 'g')
+                {
+
+                    UCSR0B ^= (1 << TXEN0);
+                }
+            }*/
+
             
             if(isClear)
             {
                 setPosStart();
                 puts_lcd(string);
                 isClear = false;
-
-                if(uartFlag)
-                {
-                    
-                    puts_uart(uartString);
-                    delay15ms();
-                    uartFlag = false;
-
-                }
                 
             }
             break;
