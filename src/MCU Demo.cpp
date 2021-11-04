@@ -108,7 +108,9 @@ ISR(TIMER0_COMPA_vect)
 
         PORTD &= ~(1<<7);
         state = 1;
+            if(state)
 
+        OCR1A = (float) ((ADCvalue*4000/1023) + 1000); // duty cycle for servo motor
 
     }
 
@@ -150,7 +152,6 @@ ISR(TIMER0_COMPA_vect)
 ISR(ADC_vect)
 {
     ADCvalue = ADCL | ADCH << 8;
-    
 
 }
 
@@ -159,6 +160,8 @@ int main(void)
 
     DDRD = (1 << PD7) | (1 << PD4) | (1 << PD5) | (1 << PD6); //PD6 is output for state LED, PD5, PD7, PD3
 	PORTD = (1 << PORTD3) | (1 << PORTD2); // Enables internal Pull-Up Resistor on PB
+
+    DDRB |= (1<<PORTB1);
 
 
     // setting timer for button read
@@ -174,6 +177,13 @@ int main(void)
     UCSR0B = (1 << TXEN0) | (1 << RXEN0);  // Enables Tx and Rx
     UCSR0C = (1 << UCSZ00) | (1 << UCSZ01); // Sets data size to 8 bits
 
+
+    TCCR1A |= (1 << COM1A1) | (1 << COM1B1) | (1 << WGM11);
+    TCCR1B |= (1 << CS11) | (1 << WGM13) | (1 << WGM12);
+
+    ICR1 = 40000-1;
+
+    OCR1A = 1000;
     
 
 
@@ -208,7 +218,6 @@ int main(void)
             }
         }
 
-        
     }
 
 }
@@ -521,6 +530,7 @@ void updateADC()
     ADCSRA |= (1<<ADSC); // start conversion
     ADCprint = ADCvalue;
     sprintf(ADCupdate, "ADC:%d ", ADCprint);
+
     ADCSRA &= ~(1<<ADEN);
 
 }
@@ -553,8 +563,6 @@ void stateMachine(int stateInput)
             break;
 
         case 1:
-
-
 
             if(!isClear)
             {
